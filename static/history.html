@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Booking History — Pickleball</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #1a5c35; min-height: 100vh; }
+
+    .court-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+    .court-bg svg { width: 100%; height: 100%; }
+
+    .header, .container { position: relative; z-index: 1; }
+
+    .header {
+      background: rgba(15, 40, 70, 0.92);
+      backdrop-filter: blur(6px);
+      color: white; padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header p { font-size: 13px; opacity: 0.65; margin-top: 2px; }
+
+    .back-btn {
+      background: rgba(255,255,255,0.15); color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 8px; padding: 7px 14px;
+      font-size: 13px; text-decoration: none;
+      transition: background 0.15s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.25); }
+
+    .container { padding: 20px 24px; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.93);
+      border-radius: 12px; padding: 16px;
+      text-align: center;
+    }
+    .stat-card .number { font-size: 28px; font-weight: 600; color: #1a3a5c; }
+    .stat-card .label  { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+    .table-wrap {
+      background: white; border-radius: 12px;
+      overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    table { border-collapse: collapse; width: 100%; min-width: 500px; }
+    thead tr { background: #1a3a5c; color: white; }
+    th { padding: 12px 14px; font-size: 13px; font-weight: 500; text-align: left; }
+    td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 20px; font-size: 11px; font-weight: 600;
+    }
+    .badge-booked    { background: #dcfce7; color: #15803d; }
+    .badge-cancelled { background: #fee2e2; color: #b91c1c; }
+
+    .empty {
+      text-align: center; padding: 60px 20px;
+      color: #94a3b8; font-size: 15px;
+    }
+
+    .refresh-info {
+      text-align: right; font-size: 12px;
+      color: #e2f0e8; margin-bottom: 10px;
+    }
+
+    @media (max-width: 640px) {
+      .header h1 { font-size: 16px; }
+      .container { padding: 12px; }
+      th, td { padding: 9px 10px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="court-bg" aria-hidden="true">
+  <svg viewBox="0 0 440 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="440" height="200" fill="#1e6b3e"/>
+    <rect x="20" y="10" width="400" height="180" fill="none" stroke="white" stroke-width="2.5"/>
+    <line x1="20" y1="100" x2="420" y2="100" stroke="white" stroke-width="3.5"/>
+    <rect x="16" y="94" width="8" height="12" fill="white" rx="1"/>
+    <rect x="416" y="94" width="8" height="12" fill="white" rx="1"/>
+    <line x1="20" y1="67" x2="420" y2="67" stroke="white" stroke-width="1.8"/>
+    <line x1="20" y1="133" x2="420" y2="133" stroke="white" stroke-width="1.8"/>
+    <line x1="220" y1="10" x2="220" y2="67" stroke="white" stroke-width="1.8"/>
+    <line x1="220" y1="133" x2="220" y2="190" stroke="white" stroke-width="1.8"/>
+  </svg>
+</div>
+
+<div class="header">
+  <div>
+    <h1>📋 Booking History</h1>
+    <p>All reservations and cancellations — updates every 5 seconds</p>
+  </div>
+  <a href="/" class="back-btn">← Back to Booking</a>
+</div>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat-card">
+      <div class="number" id="total-count">–</div>
+      <div class="label">Total Actions</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="booked-count">–</div>
+      <div class="label">Bookings</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="cancelled-count">–</div>
+      <div class="label">Cancellations</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="unique-users">–</div>
+      <div class="label">Unique Users</div>
+    </div>
+  </div>
+
+  <div class="refresh-info" id="refresh-info">Loading...</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Time</th>
+          <th>Name</th>
+          <th>Action</th>
+          <th>Court</th>
+          <th>Slot</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+    <div class="empty" id="empty-msg" style="display:none">No bookings yet. Go make some! 🏓</div>
+  </div>
+</div>
+
+<script>
+  async function loadHistory() {
+    try {
+      const res = await fetch('/api/history');
+      const data = await res.json();
+
+      // Stats
+      const booked    = data.filter(h => h.action === 'Booked').length;
+      const cancelled = data.filter(h => h.action === 'Cancelled').length;
+      const users     = new Set(data.map(h => h.name)).size;
+
+      document.getElementById('total-count').textContent     = data.length;
+      document.getElementById('booked-count').textContent    = booked;
+      document.getElementById('cancelled-count').textContent = cancelled;
+      document.getElementById('unique-users').textContent    = users;
+
+      // Table
+      const tbody = document.getElementById('history-body');
+      const empty = document.getElementById('empty-msg');
+
+      if (data.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+      } else {
+        empty.style.display = 'none';
+        // Show newest first
+        const reversed = [...data].reverse();
+        tbody.innerHTML = reversed.map((h, i) => `
+          <tr>
+            <td style="color:#94a3b8">${data.length - i}</td>
+            <td style="color:#64748b;font-size:12px">${h.timestamp}</td>
+            <td><strong>${h.name}</strong></td>
+            <td><span class="badge badge-${h.action.toLowerCase()}">${h.action}</span></td>
+            <td>${h.court}</td>
+            <td>${h.slot}</td>
+            <td>${h.date}</td>
+          </tr>
+        `).join('');
+      }
+
+      // Update refresh time
+      const now = new Date().toLocaleTimeString();
+      document.getElementById('refresh-info').textContent = `Last updated: ${now}`;
+
+    } catch (e) {
+      document.getElementById('refresh-info').textContent = 'Error loading — is the server running?';
+    }
+  }
+
+  // Load immediately, then refresh every 5 seconds
+  loadHistory();
+  setInterval(loadHistory, 5000);
+</script>
+</body>
+</html>
