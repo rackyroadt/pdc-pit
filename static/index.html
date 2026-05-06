@@ -4,60 +4,58 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pickleball Court Reservation</title>
-  <!-- Favicon (Person 4) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #1a5c35; color: #1a202c; min-height: 100vh; }
 
-    /* Court background (Person 4) */
     .court-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
     .court-bg svg { width: 100%; height: 100%; }
-    .header, .toolbar, .legend, .container { position: relative; z-index: 1; }
+    .header, .toolbar, .legend, .layout { position: relative; z-index: 1; }
 
-    /* Header */
     .header {
       background: rgba(15, 40, 70, 0.92);
       backdrop-filter: blur(6px);
-      color: white;
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
+      color: white; padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
     }
     .header h1 { font-size: 20px; font-weight: 600; }
     .header p { font-size: 13px; opacity: 0.65; margin-top: 2px; }
 
-    /* Toolbar (Person 2 added date picker here) */
+    .user-count {
+      background: rgba(34, 197, 94, 0.25);
+      border: 1px solid rgba(34, 197, 94, 0.5);
+      border-radius: 20px; padding: 5px 14px;
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pulse-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
     .toolbar {
       background: rgba(255,255,255,0.93);
       backdrop-filter: blur(6px);
       border-bottom: 1px solid #e2e8f0;
       padding: 10px 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     }
     .toolbar label { font-size: 13px; color: #64748b; white-space: nowrap; }
-    .toolbar input[type="text"] {
-      border: 1px solid #cbd5e1; border-radius: 8px;
-      padding: 7px 12px; font-size: 14px; width: 180px;
-      transition: border-color 0.15s;
-    }
-    .toolbar input[type="text"]:focus { outline: none; border-color: #1a3a5c; }
-
-    /* Date picker (Person 2) */
-    .toolbar input[type="date"] {
+    .toolbar input[type="text"], .toolbar input[type="date"] {
       border: 1px solid #cbd5e1; border-radius: 8px;
       padding: 7px 12px; font-size: 14px;
-      transition: border-color 0.15s; cursor: pointer;
+      transition: border-color 0.15s;
     }
-    .toolbar input[type="date"]:focus { outline: none; border-color: #1a3a5c; }
+    .toolbar input[type="text"] { width: 180px; }
+    .toolbar input[type="date"] { cursor: pointer; }
+    .toolbar input:focus { outline: none; border-color: #1a3a5c; }
 
-    /* History link */
     .history-link {
       background: #1a3a5c; color: white;
       border-radius: 8px; padding: 7px 14px;
@@ -67,35 +65,63 @@
     }
     .history-link:hover { opacity: 0.85; }
 
-    /* Connection status */
     .conn-status { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #64748b; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; transition: background 0.3s; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
     .dot.connected { background: #22c55e; }
     .dot.disconnected { background: #ef4444; }
 
-    /* Legend */
+    /* Stats Dashboard (NEW) */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 14px 24px;
+      position: relative; z-index: 1;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 12px; padding: 12px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .stat-card .stat-label {
+      font-size: 11px; color: #64748b; text-transform: uppercase;
+      letter-spacing: 0.5px; font-weight: 600;
+    }
+    .stat-card .stat-value {
+      font-size: 24px; font-weight: 700; color: #1a3a5c;
+      transition: transform 0.3s;
+    }
+    .stat-card.flash .stat-value {
+      transform: scale(1.15); color: #15803d;
+    }
+
     .legend { padding: 8px 24px; display: flex; gap: 16px; font-size: 12px; color: #e2f0e8; flex-wrap: wrap; }
     .legend-item { display: flex; align-items: center; gap: 6px; }
     .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
 
-    /* Table container */
-    .container { padding: 16px 24px; overflow-x: auto; }
+    /* Layout: grid with main content + activity sidebar */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 16px;
+      padding: 0 24px 24px 24px;
+    }
+    .main-col { overflow-x: auto; }
+    .side-col { display: flex; flex-direction: column; gap: 12px; }
 
+    /* Booking table */
     table {
       border-collapse: separate; border-spacing: 0;
       min-width: 500px; width: 100%;
       background: white; border-radius: 12px;
       overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.1);
     }
-    th {
-      background: #1a3a5c; color: white;
-      padding: 11px 10px; font-size: 13px; font-weight: 500; text-align: center;
-    }
+    th { background: #1a3a5c; color: white; padding: 11px 10px; font-size: 13px; font-weight: 500; text-align: center; }
     th:first-child { text-align: left; background: #132d47; width: 90px; }
     td { padding: 6px; border: 1px solid #f1f5f9; vertical-align: middle; }
     td:first-child { font-size: 12px; font-weight: 600; color: #64748b; background: #f8fafc; padding-left: 14px; white-space: nowrap; }
 
-    /* Slot buttons */
     .slot-btn {
       display: block; width: 100%; border: none; border-radius: 7px;
       padding: 8px 6px; font-size: 12px; font-weight: 500;
@@ -107,6 +133,51 @@
     .slot-available { background: #dcfce7; color: #15803d; }
     .slot-booked    { background: #fee2e2; color: #b91c1c; }
     .slot-mine      { background: #dbeafe; color: #1d4ed8; }
+
+    /* Activity feed (NEW) */
+    .activity-panel {
+      background: rgba(255,255,255,0.95);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .activity-header {
+      background: #1a3a5c; color: white;
+      padding: 12px 16px; font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .live-badge {
+      background: #ef4444; color: white;
+      font-size: 10px; font-weight: 700;
+      padding: 2px 7px; border-radius: 12px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .live-badge::before {
+      content: '';
+      width: 5px; height: 5px; border-radius: 50%;
+      background: white; animation: pulse 1.5s infinite;
+    }
+    .activity-list {
+      list-style: none; max-height: 400px; overflow-y: auto;
+    }
+    .activity-item {
+      padding: 10px 14px; border-bottom: 1px solid #f1f5f9;
+      font-size: 12px; line-height: 1.5;
+      animation: slideIn 0.4s ease-out;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(20px); background: #fef3c7; }
+      to { opacity: 1; transform: translateX(0); background: transparent; }
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-name { font-weight: 600; color: #1a3a5c; }
+    .activity-action-booked { color: #15803d; font-weight: 500; }
+    .activity-action-cancelled { color: #b91c1c; font-weight: 500; }
+    .activity-time { font-size: 10px; color: #94a3b8; margin-top: 3px; }
+    .activity-empty {
+      padding: 24px 16px; text-align: center;
+      font-size: 12px; color: #94a3b8; font-style: italic;
+    }
 
     /* Toast */
     #toast {
@@ -121,29 +192,28 @@
     #toast.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
     #toast.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
-    /* User count badge */
-    .user-count { background: rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 12px; font-size: 12px; }
-
-    /* Mobile responsive (Person 4) */
+    /* Mobile responsive */
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    }
     @media (max-width: 640px) {
       .header h1 { font-size: 16px; }
       .header p { font-size: 11px; }
       .toolbar { padding: 10px 12px; gap: 8px; }
       .toolbar input[type="text"] { width: 140px; font-size: 13px; }
-      .toolbar input[type="date"] { font-size: 13px; }
-      .container { padding: 10px 12px; }
+      .stats-bar { padding: 12px; gap: 8px; }
+      .stat-card { padding: 10px; }
+      .stat-card .stat-value { font-size: 18px; }
+      .layout { padding: 0 12px 12px 12px; }
       th { padding: 9px 6px; font-size: 11px; }
       td { padding: 4px; }
-      td:first-child { font-size: 11px; padding-left: 8px; }
       .slot-btn { font-size: 11px; padding: 6px 4px; }
-      .legend { padding: 6px 12px; font-size: 11px; }
-      .history-link { padding: 7px 10px; font-size: 12px; }
     }
   </style>
 </head>
 <body>
 
-<!-- Pickleball court background -->
 <div class="court-bg" aria-hidden="true">
   <svg viewBox="0 0 440 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
     <rect width="440" height="200" fill="#1e6b3e"/>
@@ -163,36 +233,70 @@
     <h1>🏓 Pickleball Court Reservation</h1>
     <p>Book a court instantly — all users see updates in real time</p>
   </div>
-  <div class="user-count" id="user-count">– online</div>
+  <div class="user-count">
+    <div class="pulse-dot"></div>
+    <span id="online-count">– online</span>
+  </div>
 </div>
 
 <div class="toolbar">
   <label>Name:</label>
   <input type="text" id="username" placeholder="Enter your name..." maxlength="25"/>
-
-  <!-- Date picker — Person 2 -->
   <label>Date:</label>
   <input type="date" id="date-picker"/>
-
   <a href="/history.html" class="history-link">📋 History</a>
-
   <div class="conn-status">
     <div class="dot" id="status-dot"></div>
     <span id="status-text">Connecting...</span>
   </div>
 </div>
 
+<!-- LIVE STATS DASHBOARD -->
+<div class="stats-bar">
+  <div class="stat-card" id="stat-active">
+    <div class="stat-label">🎾 Active Bookings</div>
+    <div class="stat-value" id="val-active">0</div>
+  </div>
+  <div class="stat-card" id="stat-total">
+    <div class="stat-label">📊 Total Bookings</div>
+    <div class="stat-value" id="val-total">0</div>
+  </div>
+  <div class="stat-card" id="stat-users">
+    <div class="stat-label">👥 Unique Users</div>
+    <div class="stat-value" id="val-users">0</div>
+  </div>
+  <div class="stat-card" id="stat-popular">
+    <div class="stat-label">🏆 Most Popular</div>
+    <div class="stat-value" id="val-popular" style="font-size:16px">—</div>
+  </div>
+</div>
+
 <div class="legend">
   <div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:1px solid #bbf7d0"></div>Available</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#dbeafe;border:1px solid #bfdbfe"></div>Your booking (click to cancel)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#dbeafe;border:1px solid #bfdbfe"></div>Your booking</div>
   <div class="legend-item"><div class="legend-dot" style="background:#fee2e2;border:1px solid #fecaca"></div>Taken</div>
 </div>
 
-<div class="container">
-  <table id="grid">
-    <thead><tr id="header-row"><th>Time</th></tr></thead>
-    <tbody id="grid-body"></tbody>
-  </table>
+<!-- TWO-COLUMN LAYOUT: booking grid + activity feed -->
+<div class="layout">
+  <div class="main-col">
+    <table id="grid">
+      <thead><tr id="header-row"><th>Time</th></tr></thead>
+      <tbody id="grid-body"></tbody>
+    </table>
+  </div>
+
+  <div class="side-col">
+    <div class="activity-panel">
+      <div class="activity-header">
+        ⚡ Live Activity
+        <span class="live-badge">LIVE</span>
+      </div>
+      <ul class="activity-list" id="activity-list">
+        <li class="activity-empty">Waiting for activity...</li>
+      </ul>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -205,19 +309,15 @@
   let ws;
   let currentBookings = {};
   let toastTimer;
-
-  // Set date picker to today
   const today = new Date().toISOString().split('T')[0];
   let currentDate = today;
   document.getElementById('date-picker').value = today;
 
-  // When user changes date, request that date's bookings from server
   document.getElementById('date-picker').addEventListener('change', (e) => {
     currentDate = e.target.value;
     ws.send(JSON.stringify({ type: 'get_date', date: currentDate }));
   });
 
-  // Build empty grid once
   function buildGrid() {
     const headerRow = document.getElementById('header-row');
     COURTS.forEach(c => {
@@ -244,7 +344,6 @@
     return 'cell_' + (court + '_' + slot).replace(/[^a-z0-9]/gi, '_');
   }
 
-  // Render grid from booking state
   function renderGrid(bookings) {
     currentBookings = bookings;
     const myName = document.getElementById('username').value.trim();
@@ -289,21 +388,94 @@
     ws.send(JSON.stringify({ type: 'cancel', court, slot, name, date: currentDate }));
   }
 
+  //Live Stats Dashboard
+  function updateStats(stats) {
+    const fields = [
+      { id: 'val-active',  card: 'stat-active',  value: stats.active },
+      { id: 'val-total',   card: 'stat-total',   value: stats.total },
+      { id: 'val-users',   card: 'stat-users',   value: stats.users },
+      { id: 'val-popular', card: 'stat-popular', value: stats.popular },
+    ];
+
+    fields.forEach(f => {
+      const el = document.getElementById(f.id);
+      if (el && el.textContent != f.value) {
+        el.textContent = f.value;
+        // flash animation
+        const card = document.getElementById(f.card);
+        card.classList.add('flash');
+        setTimeout(() => card.classList.remove('flash'), 400);
+      }
+    });
+
+    document.getElementById('online-count').textContent =
+      stats.online + (stats.online === 1 ? ' user online' : ' users online');
+  }
+
+  // Live Activity Feed
+  function addActivity(event, animate = true) {
+    const list = document.getElementById('activity-list');
+    // Remove empty placeholder
+    const empty = list.querySelector('.activity-empty');
+    if (empty) empty.remove();
+
+    const li = document.createElement('li');
+    li.className = 'activity-item';
+    if (!animate) li.style.animation = 'none';
+
+    const actionClass = event.action === 'booked' ? 'activity-action-booked' : 'activity-action-cancelled';
+    const actionIcon = event.action === 'booked' ? '🟢' : '🔴';
+    const actionText = event.action === 'booked' ? 'booked' : 'cancelled';
+
+    li.innerHTML = `
+      ${actionIcon} <span class="activity-name">${event.name}</span>
+      <span class="${actionClass}">${actionText}</span>
+      ${event.court} at ${event.slot}
+      <div class="activity-time">${event.timestamp}</div>
+    `;
+
+    list.insertBefore(li, list.firstChild);
+
+    // Keep only last 8
+    while (list.children.length > 8) list.removeChild(list.lastChild);
+  }
+
+  function loadActivityHistory(events) {
+    const list = document.getElementById('activity-list');
+    list.innerHTML = '';
+    if (!events || events.length === 0) {
+      list.innerHTML = '<li class="activity-empty">Waiting for activity...</li>';
+      return;
+    }
+    // Add oldest first so newest ends up on top
+    [...events].reverse().forEach(ev => addActivity(ev, false));
+  }
+
+  // Live WebSocket Connection
   function connect() {
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+
     ws.onopen = () => {
       document.getElementById('status-dot').className = 'dot connected';
       document.getElementById('status-text').textContent = 'Connected';
     };
+
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
       if (msg.type === 'state' && msg.date === currentDate) {
         renderGrid(msg.bookings);
+      } else if (msg.type === 'stats') {
+        updateStats(msg.stats);
+      } else if (msg.type === 'activity') {
+        addActivity(msg.event);
+      } else if (msg.type === 'activity_init') {
+        loadActivityHistory(msg.events);
       } else if (msg.type === 'error') {
         toast(msg.msg, 'error');
       }
     };
+
     ws.onclose = () => {
       document.getElementById('status-dot').className = 'dot disconnected';
       document.getElementById('status-text').textContent = 'Disconnected — retrying...';
