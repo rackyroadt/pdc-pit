@@ -8,6 +8,22 @@ from collections import Counter
 
 app = FastAPI()
 
+
+async def stats_heartbeat_worker():
+    """Background worker — broadcasts live stats to all clients every 10 seconds.
+    Runs in parallel with the main connection handler via asyncio."""
+    while True:
+        await asyncio.sleep(10)
+        if connected_clients:
+            await broadcast_stats()
+
+
+@app.on_event("startup")
+async def start_background_workers():
+    """Launch background worker(s) when the server starts."""
+    asyncio.create_task(stats_heartbeat_worker())
+    print("[WORKER] Stats heartbeat worker started (broadcasts every 10s)")
+
 COURTS = ["Court 1", "Court 2", "Court 3", "Court 4"]
 SLOTS  = ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
           "1:00 PM", "2:00 PM",  "3:00 PM",  "4:00 PM",
@@ -171,3 +187,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
