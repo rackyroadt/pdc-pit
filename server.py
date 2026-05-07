@@ -14,7 +14,7 @@ def now_ph():
     """Returns current time in Philippines timezone (UTC+8)."""
     return datetime.now(PH_TZ)
 
-#LOGGING SETUP
+#LOGGING SETUP 
 #Detailed logging configuration for debugging and monitoring
 logging.basicConfig(
     level=logging.INFO,
@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pickleball-server")
 
-#SERVER STATE 
+#SERVER STATE
 SERVER_START_TIME = now_ph()  #used for uptime tracking
 
 app = FastAPI(
@@ -48,6 +48,7 @@ async def stats_heartbeat_worker():
 @app.on_event("startup")
 async def start_background_workers():
     """Launch background workers when the server starts."""
+    load_data()  #Restore previous bookings from disk
     asyncio.create_task(stats_heartbeat_worker())
     logger.info("=" * 55)
     logger.info("Pickleball Court Reservation Server STARTED")
@@ -65,6 +66,36 @@ history: list = []
 recent_activity: list = []
 booking_lock = asyncio.Lock()
 connected_clients: list[WebSocket] = []
+
+#DATA PERSISTENCE 
+import os
+DATA_FILE = "data.json"
+
+def save_data():
+    """Save bookings and history to disk so they survive server restarts."""
+    try:
+        with open(DATA_FILE, 'w') as f:
+            json.dump({
+                "bookings": bookings,
+                "history": history,
+                "recent_activity": recent_activity
+            }, f)
+    except Exception as e:
+        logger.warning(f"Failed to save data: {e}")
+
+def load_data():
+    """Load bookings and history from disk on server startup."""
+    global bookings, history, recent_activity
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'r') as f:
+                data = json.load(f)
+                bookings = data.get("bookings", {})
+                history = data.get("history", [])
+                recent_activity = data.get("recent_activity", [])
+            logger.info(f"Loaded data: {len(history)} history entries, {len(bookings)} dates")
+        except Exception as e:
+            logger.warning(f"Failed to load data: {e}")
 
 
 def init_date(date_str: str):
@@ -155,7 +186,6 @@ async def add_activity(action: str, name: str, court: str, slot: str):
 
 
 #API ROUTES
-
 @app.get("/api/health")
 async def health_check():
     """
@@ -185,7 +215,8 @@ async def get_stats():
     return JSONResponse(calc_stats())
 
 
-#WebSocket endpoint
+#WebSocket endpoint 
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """
@@ -238,6 +269,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         await broadcast_state(date_str)
                         await add_activity("booked", name, court, slot)
                         await broadcast_stats()
+                        save_data()
                     else:
                         existing = bookings[date_str][court][slot]
                         logger.warning(f"[CONFLICT] {name} tried to book {court} @ {slot} (already taken by {existing})")
@@ -261,6 +293,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         await broadcast_state(date_str)
                         await add_activity("cancelled", name, court, slot)
                         await broadcast_stats()
+                        save_data()
                     else:
                         logger.warning(f"[DENIED] {name} tried to cancel {court} @ {slot} (not their booking)")
                         await websocket.send_text(json.dumps({
@@ -276,5 +309,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
 
