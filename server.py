@@ -4,8 +4,15 @@ from fastapi.responses import JSONResponse
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from collections import Counter
+
+#Philippines timezone (UTC+8)
+PH_TZ = timezone(timedelta(hours=8))
+
+def now_ph():
+    """Returns current time in Philippines timezone (UTC+8)."""
+    return datetime.now(PH_TZ)
 
 #LOGGING SETUP
 #Detailed logging configuration for debugging and monitoring
@@ -17,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger("pickleball-server")
 
 #SERVER STATE 
-SERVER_START_TIME = datetime.now()  #used for uptime tracking
+SERVER_START_TIME = now_ph()  #used for uptime tracking
 
 app = FastAPI(
     title="Pickleball Court Reservation System",
@@ -90,7 +97,7 @@ def calc_stats():
 
 def get_uptime():
     """Calculate server uptime since startup."""
-    delta = datetime.now() - SERVER_START_TIME
+    delta = now_ph() - SERVER_START_TIME
     days = delta.days
     hours, remainder = divmod(delta.seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
@@ -139,7 +146,7 @@ async def add_activity(action: str, name: str, court: str, slot: str):
         "name":      name,
         "court":     court,
         "slot":      slot,
-        "timestamp": datetime.now().strftime("%I:%M:%S %p"),
+        "timestamp": now_ph().strftime("%I:%M:%S %p"),
     }
     recent_activity.insert(0, event)
     if len(recent_activity) > 8:
@@ -190,7 +197,7 @@ async def websocket_endpoint(websocket: WebSocket):
     client_host = websocket.client.host if websocket.client else "unknown"
     logger.info(f"[+] Client connected from {client_host} | Total: {len(connected_clients)}")
 
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_ph().strftime("%Y-%m-%d")
     init_date(today)
 
     await websocket.send_text(json.dumps({
@@ -225,7 +232,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         history.append({
                             "action": "Booked", "name": name, "court": court,
                             "slot": slot, "date": date_str,
-                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            "timestamp": now_ph().strftime("%Y-%m-%d %H:%M:%S")
                         })
                         logger.info(f"[BOOKED] {name} → {court} @ {slot} on {date_str}")
                         await broadcast_state(date_str)
@@ -248,7 +255,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         history.append({
                             "action": "Cancelled", "name": name, "court": court,
                             "slot": slot, "date": date_str,
-                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            "timestamp": now_ph().strftime("%Y-%m-%d %H:%M:%S")
                         })
                         logger.info(f"[CANCEL] {name} cancelled {court} @ {slot} on {date_str}")
                         await broadcast_state(date_str)
