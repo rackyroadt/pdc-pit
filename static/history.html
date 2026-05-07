@@ -11,7 +11,6 @@
 
     .court-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
     .court-bg svg { width: 100%; height: 100%; }
-
     .header, .container { position: relative; z-index: 1; }
 
     .header {
@@ -34,10 +33,11 @@
 
     .container { padding: 20px 24px; }
 
+    /* Stats cards */
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 12px; margin-bottom: 20px;
+      gap: 12px; margin-bottom: 16px;
     }
     .stat-card {
       background: rgba(255,255,255,0.93);
@@ -47,14 +47,92 @@
     .stat-card .number { font-size: 28px; font-weight: 600; color: #1a3a5c; }
     .stat-card .label  { font-size: 12px; color: #64748b; margin-top: 4px; }
 
+    /* Filter toolbar */
+    .filter-bar {
+      background: rgba(255,255,255,0.95);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-bar label {
+      font-size: 12px; color: #64748b; font-weight: 600;
+      white-space: nowrap;
+    }
+    .filter-bar input, .filter-bar select {
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 6px 10px;
+      font-size: 13px;
+      background: white;
+    }
+    .filter-bar input:focus, .filter-bar select:focus {
+      outline: none;
+      border-color: #1a3a5c;
+    }
+    .filter-bar input[type="text"] { width: 180px; }
+    .filter-bar button {
+      background: #1a3a5c; color: white;
+      border: none; border-radius: 7px;
+      padding: 6px 14px; font-size: 12px;
+      cursor: pointer; transition: opacity 0.15s;
+      font-weight: 600;
+    }
+    .filter-bar button:hover { opacity: 0.85; }
+    .filter-bar .clear-btn {
+      background: #ef4444;
+    }
+    .filter-bar .results-count {
+      margin-left: auto;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    /* Date stats panel (shown when filtering by date) */
+    .date-stats {
+      display: none;
+      background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      border-left: 4px solid #1a3a5c;
+    }
+    .date-stats.active { display: block; }
+    .date-stats h3 {
+      font-size: 13px; color: #1a3a5c; margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .date-stats-row {
+      display: flex; gap: 18px; flex-wrap: wrap;
+      font-size: 12px; color: #475569;
+    }
+    .date-stats-row strong { color: #1a3a5c; font-size: 14px; }
+
+    /* Table */
     .table-wrap {
       background: white; border-radius: 12px;
       overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.1);
       overflow-x: auto;
     }
-    table { border-collapse: collapse; width: 100%; min-width: 500px; }
+    table { border-collapse: collapse; width: 100%; min-width: 600px; }
     thead tr { background: #1a3a5c; color: white; }
-    th { padding: 12px 14px; font-size: 13px; font-weight: 500; text-align: left; }
+    th {
+      padding: 12px 14px; font-size: 13px; font-weight: 500;
+      text-align: left; cursor: pointer;
+      user-select: none; transition: background 0.15s;
+    }
+    th:hover { background: #2d5a87; }
+    th .sort-icon {
+      display: inline-block;
+      margin-left: 4px;
+      opacity: 0.5;
+      font-size: 10px;
+    }
+    th.active-sort .sort-icon { opacity: 1; }
     td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #f8fafc; }
@@ -76,9 +154,19 @@
       color: #e2f0e8; margin-bottom: 10px;
     }
 
+    /* Highlight matched search text */
+    mark {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+
     @media (max-width: 640px) {
       .header h1 { font-size: 16px; }
       .container { padding: 12px; }
+      .filter-bar { padding: 10px; gap: 8px; }
+      .filter-bar input[type="text"] { width: 100%; }
       th, td { padding: 9px 10px; font-size: 12px; }
     }
   </style>
@@ -127,79 +215,277 @@
     </div>
   </div>
 
+  <!-- FILTER TOOLBAR -->
+  <div class="filter-bar">
+    <label for="search-input">🔍 Search by name:</label>
+    <input type="text" id="search-input" placeholder="Type a name..."/>
+
+    <label for="date-filter">📅 Filter by date:</label>
+    <input type="date" id="date-filter"/>
+
+    <label for="action-filter">⚡ Action:</label>
+    <select id="action-filter">
+      <option value="">All</option>
+      <option value="Booked">Booked only</option>
+      <option value="Cancelled">Cancelled only</option>
+    </select>
+
+    <button class="clear-btn" id="clear-filters">Clear filters</button>
+
+    <div class="results-count" id="results-count">Showing all</div>
+  </div>
+
+  <!-- PER-DATE STATS (shows when filtering by date) -->
+  <div class="date-stats" id="date-stats">
+    <h3 id="date-stats-title">Stats for selected date</h3>
+    <div class="date-stats-row">
+      <div>Total: <strong id="date-total">0</strong></div>
+      <div>Booked: <strong id="date-booked">0</strong></div>
+      <div>Cancelled: <strong id="date-cancelled">0</strong></div>
+      <div>Unique users: <strong id="date-users">0</strong></div>
+      <div>Most popular court: <strong id="date-popular">—</strong></div>
+    </div>
+  </div>
+
   <div class="refresh-info" id="refresh-info">Loading...</div>
 
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>#</th>
-          <th>Time</th>
-          <th>Name</th>
-          <th>Action</th>
-          <th>Court</th>
-          <th>Slot</th>
-          <th>Date</th>
+          <th data-sort="num">#<span class="sort-icon">▼</span></th>
+          <th data-sort="timestamp">Time<span class="sort-icon">▼</span></th>
+          <th data-sort="name">Name<span class="sort-icon">▼</span></th>
+          <th data-sort="action">Action<span class="sort-icon">▼</span></th>
+          <th data-sort="court">Court<span class="sort-icon">▼</span></th>
+          <th data-sort="slot">Slot<span class="sort-icon">▼</span></th>
+          <th data-sort="date">Date<span class="sort-icon">▼</span></th>
         </tr>
       </thead>
       <tbody id="history-body"></tbody>
     </table>
-    <div class="empty" id="empty-msg" style="display:none">No bookings yet. Go make some! 🏓</div>
+    <div class="empty" id="empty-msg" style="display:none">No bookings match your filters. 🏓</div>
   </div>
 </div>
 
 <script>
+  // Global state
+  let allHistory = [];
+  let sortField = 'num';
+  let sortDir = 'desc';
+
+  //DATA LOADING
   async function loadHistory() {
     try {
       const res = await fetch('/api/history');
       const data = await res.json();
 
-      // Stats
-      const booked    = data.filter(h => h.action === 'Booked').length;
-      const cancelled = data.filter(h => h.action === 'Cancelled').length;
-      const users     = new Set(data.map(h => h.name)).size;
+      // Save full history (with sequence numbers)
+      allHistory = data.map((h, i) => ({ ...h, num: i + 1 }));
 
-      document.getElementById('total-count').textContent     = data.length;
-      document.getElementById('booked-count').textContent    = booked;
-      document.getElementById('cancelled-count').textContent = cancelled;
-      document.getElementById('unique-users').textContent    = users;
+      // Update overall stats
+      updateOverallStats();
 
-      // Table
-      const tbody = document.getElementById('history-body');
-      const empty = document.getElementById('empty-msg');
-
-      if (data.length === 0) {
-        tbody.innerHTML = '';
-        empty.style.display = 'block';
-      } else {
-        empty.style.display = 'none';
-        // Show newest first
-        const reversed = [...data].reverse();
-        tbody.innerHTML = reversed.map((h, i) => `
-          <tr>
-            <td style="color:#94a3b8">${data.length - i}</td>
-            <td style="color:#64748b;font-size:12px">${h.timestamp}</td>
-            <td><strong>${h.name}</strong></td>
-            <td><span class="badge badge-${h.action.toLowerCase()}">${h.action}</span></td>
-            <td>${h.court}</td>
-            <td>${h.slot}</td>
-            <td>${h.date}</td>
-          </tr>
-        `).join('');
-      }
+      // Apply filters and render
+      applyFiltersAndRender();
 
       // Update refresh time
-      const now = new Date().toLocaleTimeString();
-      document.getElementById('refresh-info').textContent = `Last updated: ${now}`;
+      document.getElementById('refresh-info').textContent =
+        `Last updated: ${new Date().toLocaleTimeString()}`;
 
     } catch (e) {
-      document.getElementById('refresh-info').textContent = 'Error loading — is the server running?';
+      document.getElementById('refresh-info').textContent =
+        'Error loading — is the server running?';
     }
   }
 
-  // Load immediately, then refresh every 5 seconds
+  //OVERALL STATS (top cards) 
+  function updateOverallStats() {
+    const booked = allHistory.filter(h => h.action === 'Booked').length;
+    const cancelled = allHistory.filter(h => h.action === 'Cancelled').length;
+    const users = new Set(allHistory.map(h => h.name)).size;
+
+    document.getElementById('total-count').textContent = allHistory.length;
+    document.getElementById('booked-count').textContent = booked;
+    document.getElementById('cancelled-count').textContent = cancelled;
+    document.getElementById('unique-users').textContent = users;
+  }
+
+  //PER-DATE STATS PANEL 
+  function updateDateStats(filteredByDate, dateStr) {
+    const panel = document.getElementById('date-stats');
+    if (!dateStr) {
+      panel.classList.remove('active');
+      return;
+    }
+
+    panel.classList.add('active');
+    document.getElementById('date-stats-title').textContent =
+      `📅 Stats for ${dateStr}`;
+
+    const booked = filteredByDate.filter(h => h.action === 'Booked');
+    const cancelled = filteredByDate.filter(h => h.action === 'Cancelled');
+    const users = new Set(filteredByDate.map(h => h.name)).size;
+
+    // Most popular court for this date
+    const courtCounts = {};
+    booked.forEach(h => {
+      courtCounts[h.court] = (courtCounts[h.court] || 0) + 1;
+    });
+    const popular = Object.keys(courtCounts).length > 0
+      ? Object.keys(courtCounts).reduce((a, b) =>
+          courtCounts[a] > courtCounts[b] ? a : b)
+      : '—';
+
+    document.getElementById('date-total').textContent = filteredByDate.length;
+    document.getElementById('date-booked').textContent = booked.length;
+    document.getElementById('date-cancelled').textContent = cancelled.length;
+    document.getElementById('date-users').textContent = users;
+    document.getElementById('date-popular').textContent = popular;
+  }
+
+  //FILTER + RENDER 
+  function applyFiltersAndRender() {
+    const searchTerm = document.getElementById('search-input').value.trim().toLowerCase();
+    const dateFilter = document.getElementById('date-filter').value;
+    const actionFilter = document.getElementById('action-filter').value;
+
+    let filtered = [...allHistory];
+
+    // Filter by name
+    if (searchTerm) {
+      filtered = filtered.filter(h =>
+        h.name.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Filter by date
+    if (dateFilter) {
+      filtered = filtered.filter(h => h.date === dateFilter);
+    }
+
+    // Filter by action
+    if (actionFilter) {
+      filtered = filtered.filter(h => h.action === actionFilter);
+    }
+
+    // Update per-date stats
+    updateDateStats(filtered, dateFilter);
+
+    // Sort
+    filtered = sortHistory(filtered);
+
+    // Update results count
+    document.getElementById('results-count').textContent =
+      `Showing ${filtered.length} of ${allHistory.length}`;
+
+    // Render
+    renderTable(filtered, searchTerm);
+  }
+
+  //SORTING
+  function sortHistory(data) {
+    const sorted = [...data].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      // Numeric for #
+      if (sortField === 'num') {
+        aVal = Number(aVal);
+        bVal = Number(bVal);
+      } else {
+        aVal = String(aVal).toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }
+
+  function setSort(field) {
+    if (sortField === field) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField = field;
+      sortDir = 'asc';
+    }
+
+    // Update sort icons
+    document.querySelectorAll('th').forEach(th => {
+      th.classList.remove('active-sort');
+      const icon = th.querySelector('.sort-icon');
+      if (icon) icon.textContent = '▼';
+    });
+
+    const activeTh = document.querySelector(`th[data-sort="${field}"]`);
+    if (activeTh) {
+      activeTh.classList.add('active-sort');
+      activeTh.querySelector('.sort-icon').textContent =
+        sortDir === 'asc' ? '▲' : '▼';
+    }
+
+    applyFiltersAndRender();
+  }
+
+  //RENDERING 
+  function renderTable(data, highlightTerm = '') {
+    const tbody = document.getElementById('history-body');
+    const empty = document.getElementById('empty-msg');
+
+    if (data.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+    tbody.innerHTML = data.map(h => `
+      <tr>
+        <td style="color:#94a3b8">${h.num}</td>
+        <td style="color:#64748b;font-size:12px">${h.timestamp}</td>
+        <td><strong>${highlight(h.name, highlightTerm)}</strong></td>
+        <td><span class="badge badge-${h.action.toLowerCase()}">${h.action}</span></td>
+        <td>${h.court}</td>
+        <td>${h.slot}</td>
+        <td>${h.date}</td>
+      </tr>
+    `).join('');
+  }
+
+  function highlight(text, term) {
+    if (!term) return text;
+    const regex = new RegExp(`(${escapeRegex(term)})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+  }
+
+  function escapeRegex(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  //EVENT LISTENERS 
+  document.getElementById('search-input').addEventListener('input', applyFiltersAndRender);
+  document.getElementById('date-filter').addEventListener('change', applyFiltersAndRender);
+  document.getElementById('action-filter').addEventListener('change', applyFiltersAndRender);
+
+  document.getElementById('clear-filters').addEventListener('click', () => {
+    document.getElementById('search-input').value = '';
+    document.getElementById('date-filter').value = '';
+    document.getElementById('action-filter').value = '';
+    applyFiltersAndRender();
+  });
+
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => setSort(th.dataset.sort));
+  });
+
+  // Initial load + auto-refresh every 5 seconds
   loadHistory();
   setInterval(loadHistory, 5000);
 </script>
 </body>
 </html>
+
+
