@@ -210,9 +210,49 @@
       td { padding: 4px; }
       .slot-btn { font-size: 11px; padding: 6px 4px; }
     }
+    /* ── Loading overlay (shown while server cold-starts) ── */
+    .loader-overlay {
+      position: fixed; inset: 0;
+      background: rgba(15, 42, 63, 0.96);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px; z-index: 9999;
+      transition: opacity 0.5s ease; opacity: 1;
+      backdrop-filter: blur(4px);
+    }
+    .loader-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loader-spin {
+      width: 48px; height: 48px;
+      border: 4px solid rgba(255,255,255,0.15);
+      border-top-color: #4ade80;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-icon { font-size: 38px; animation: bounce 1.2s ease-in-out infinite; }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .loader-title { color: white; font-size: 18px; font-weight: 700; margin-top: 4px; }
+    .loader-msg { color: #94a3b8; font-size: 13px; max-width: 320px; text-align: center; line-height: 1.5; padding: 0 24px; }
+    .loader-tip {
+      margin-top: 8px; padding: 8px 14px;
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid rgba(74, 222, 128, 0.25);
+      color: #86efac; font-size: 11px; border-radius: 6px;
+    }
   </style>
 </head>
 <body>
+
+<!-- Loading overlay — shown while server wakes up (Render cold start) -->
+<div class="loader-overlay" id="loader-overlay">
+  <div class="loader-icon">🏓</div>
+  <div class="loader-spin"></div>
+  <div class="loader-title">Waking up the server...</div>
+  <div class="loader-msg">First load may take up to 30 seconds while the Render free-tier server starts up. This only happens once.</div>
+  <div class="loader-tip">⚡ Subsequent loads will be instant</div>
+</div>
 
 <div class="court-bg" aria-hidden="true">
   <svg viewBox="0 0 440 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
@@ -334,6 +374,12 @@
       COURTS.forEach(court => {
         const td = document.createElement('td');
         td.id = cellId(court, slot);
+        // Pre-fill with Available placeholder so empty grid never shows during cold-start
+        const placeholder = document.createElement('button');
+        placeholder.className = 'slot-btn slot-available';
+        placeholder.textContent = 'Available';
+        placeholder.disabled = true;
+        td.appendChild(placeholder);
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -388,7 +434,7 @@
     ws.send(JSON.stringify({ type: 'cancel', court, slot, name, date: currentDate }));
   }
 
-  //Live Stats Dashboard
+  // ─── Live Stats Dashboard ─────────────────────────────────────────────
   function updateStats(stats) {
     const fields = [
       { id: 'val-active',  card: 'stat-active',  value: stats.active },
@@ -412,7 +458,7 @@
       stats.online + (stats.online === 1 ? ' user online' : ' users online');
   }
 
-  // Live Activity Feed
+  //Live Activity Feed 
   function addActivity(event, animate = true) {
     const list = document.getElementById('activity-list');
     // Remove empty placeholder
@@ -436,7 +482,7 @@
 
     list.insertBefore(li, list.firstChild);
 
-    // Keep only last 8
+    //Keep only last the 8
     while (list.children.length > 8) list.removeChild(list.lastChild);
   }
 
@@ -447,11 +493,11 @@
       list.innerHTML = '<li class="activity-empty">Waiting for activity...</li>';
       return;
     }
-    // Add oldest first so newest ends up on top
+    //Add oldest first so newest ends up on top
     [...events].reverse().forEach(ev => addActivity(ev, false));
   }
 
-  // Live WebSocket Connection
+  //WebSocket 
   function connect() {
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
@@ -459,6 +505,12 @@
     ws.onopen = () => {
       document.getElementById('status-dot').className = 'dot connected';
       document.getElementById('status-text').textContent = 'Connected';
+      // Hide loading overlay (only matters on first connect; harmless on reconnects)
+      const overlay = document.getElementById('loader-overlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        overlay.classList.add('hidden');
+        setTimeout(() => overlay.style.display = 'none', 600);
+      }
     };
 
     ws.onmessage = (e) => {
