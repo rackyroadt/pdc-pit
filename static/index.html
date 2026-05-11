@@ -349,7 +349,15 @@
   let ws;
   let currentBookings = {};
   let toastTimer;
-  const today = new Date().toISOString().split('T')[0];
+  // Get today's date in local timezone (not UTC!) so server and client agree
+  function getLocalDateStr(d) {
+    d = d || new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  const today = getLocalDateStr();
   let currentDate = today;
   document.getElementById('date-picker').value = today;
 
@@ -375,10 +383,11 @@
         const td = document.createElement('td');
         td.id = cellId(court, slot);
         // Pre-fill with Available placeholder so empty grid never shows during cold-start
+        // Make them clickable so they work even before WebSocket state arrives
         const placeholder = document.createElement('button');
         placeholder.className = 'slot-btn slot-available';
         placeholder.textContent = 'Available';
-        placeholder.disabled = true;
+        placeholder.onclick = () => book(court, slot);
         td.appendChild(placeholder);
         tr.appendChild(td);
       });
@@ -458,7 +467,7 @@
       stats.online + (stats.online === 1 ? ' user online' : ' users online');
   }
 
-  //Live Activity Feed 
+  // ─── Live Activity Feed ───────────────────────────────────────────────
   function addActivity(event, animate = true) {
     const list = document.getElementById('activity-list');
     // Remove empty placeholder
@@ -482,7 +491,7 @@
 
     list.insertBefore(li, list.firstChild);
 
-    //Keep only last the 8
+    // Keep only last 8
     while (list.children.length > 8) list.removeChild(list.lastChild);
   }
 
@@ -493,11 +502,11 @@
       list.innerHTML = '<li class="activity-empty">Waiting for activity...</li>';
       return;
     }
-    //Add oldest first so newest ends up on top
+    // Add oldest first so newest ends up on top
     [...events].reverse().forEach(ev => addActivity(ev, false));
   }
 
-  //WebSocket 
+  // ─── WebSocket ────────────────────────────────────────────────────────
   function connect() {
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
