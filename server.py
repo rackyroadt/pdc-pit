@@ -14,7 +14,7 @@ def now_ph():
     """Returns current time in Philippines timezone (UTC+8)."""
     return datetime.now(PH_TZ)
 
-#LOGGING SETUP
+#LOGGING SETUP 
 # Detailed logging configuration for debugging and monitoring
 logging.basicConfig(
     level=logging.INFO,
@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pickleball-server")
 
-#SERVER STATE 
+#SERVER STATE
 SERVER_START_TIME = now_ph()  # used for uptime tracking
 
 app = FastAPI(
@@ -33,7 +33,7 @@ app = FastAPI(
 )
 
 
-#Background Worker (PDC: Task Distribution) 
+#Background Worker (PDC: Task Distribution)
 async def stats_heartbeat_worker():
     """Background worker — broadcasts live stats every 10 seconds.
     Runs in parallel with the main connection handler via asyncio."""
@@ -70,7 +70,7 @@ recent_activity: list = []
 booking_lock = asyncio.Lock()
 connected_clients: list[WebSocket] = []
 
-#DATA PERSISTENCE
+#DATA 
 import os
 DATA_FILE = "data.json"
 
@@ -298,10 +298,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     booked_name = bookings[date_str][court][slot]
                     booked_session = session_owners.get(date_str, {}).get(court, {}).get(slot)
 
-                    # Allow cancel only if NAME matches AND SESSION_ID matches
-                    # Legacy bookings (no session) fall back to name-only check
+                    # STRICT: Both name AND session_id must match the booking
+                    # No legacy fallback — protects against anyone knowing the name
                     name_ok = (booked_name == name)
-                    session_ok = (booked_session is None) or (booked_session == session_id)
+                    session_ok = (booked_session is not None) and (booked_session == session_id)
 
                     if name_ok and session_ok:
                         bookings[date_str][court][slot] = None
@@ -321,8 +321,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             reason = "name mismatch"
                             err_msg = "You can only cancel your own bookings!"
                         else:
-                            reason = "session mismatch (booking made on different browser)"
-                            err_msg = "Only the original booker can cancel this. Bookings are tied to the browser they were made on."
+                            reason = "session mismatch (different browser)"
+                            err_msg = "Only the browser that made this booking can cancel it. Each booking is tied to a unique session."
                         logger.warning(f"[DENIED] {name} tried to cancel {court} @ {slot} ({reason})")
                         await websocket.send_text(json.dumps({
                             "type": "error",
@@ -337,5 +337,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
 
