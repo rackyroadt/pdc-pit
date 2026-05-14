@@ -7,15 +7,15 @@ import logging
 from datetime import datetime, timezone, timedelta
 from collections import Counter
 
-#Philippines timezone (UTC+8)
+# Philippines timezone (UTC+8)
 PH_TZ = timezone(timedelta(hours=8))
 
 def now_ph():
     """Returns current time in Philippines timezone (UTC+8)."""
     return datetime.now(PH_TZ)
 
-#LOGGING SETUP 
-#Detailed logging configuration for debugging and monitoring
+#LOGGING SETUP
+# Detailed logging configuration for debugging and monitoring
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -23,8 +23,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pickleball-server")
 
-#SERVER STATE
-SERVER_START_TIME = now_ph()  #used for uptime tracking
+#SERVER STATE 
+SERVER_START_TIME = now_ph()  # used for uptime tracking
 
 app = FastAPI(
     title="Pickleball Court Reservation System",
@@ -48,7 +48,7 @@ async def stats_heartbeat_worker():
 @app.on_event("startup")
 async def start_background_workers():
     """Launch background workers when the server starts."""
-    load_data()  #Restore previous bookings from disk
+    load_data()  # Restore previous bookings from disk
     asyncio.create_task(stats_heartbeat_worker())
     logger.info("=" * 55)
     logger.info("Pickleball Court Reservation Server STARTED")
@@ -62,12 +62,15 @@ SLOTS  = ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
           "5:00 PM", "6:00 PM"]
 
 bookings: dict = {}
+# Parallel structure: stores session_id of the booker for ownership verification
+# Prevents anyone with the name from cancelling someone else's booking
+session_owners: dict = {}
 history: list = []
 recent_activity: list = []
 booking_lock = asyncio.Lock()
 connected_clients: list[WebSocket] = []
 
-#DATA PERSISTENCE 
+#DATA PERSISTENCE
 import os
 DATA_FILE = "data.json"
 
@@ -77,6 +80,7 @@ def save_data():
         with open(DATA_FILE, 'w') as f:
             json.dump({
                 "bookings": bookings,
+                "session_owners": session_owners,
                 "history": history,
                 "recent_activity": recent_activity
             }, f)
@@ -85,12 +89,13 @@ def save_data():
 
 def load_data():
     """Load bookings and history from disk on server startup."""
-    global bookings, history, recent_activity
+    global bookings, session_owners, history, recent_activity
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, 'r') as f:
                 data = json.load(f)
                 bookings = data.get("bookings", {})
+                session_owners = data.get("session_owners", {})
                 history = data.get("history", [])
                 recent_activity = data.get("recent_activity", [])
             logger.info(f"Loaded data: {len(history)} history entries, {len(bookings)} dates")
@@ -103,6 +108,9 @@ def init_date(date_str: str):
     if date_str not in bookings:
         bookings[date_str] = {court: {slot: None for slot in SLOTS} for court in COURTS}
         logger.debug(f"Initialized bookings for date: {date_str}")
+    # Always ensure session_owners has matching structure (handles legacy data)
+    if date_str not in session_owners:
+        session_owners[date_str] = {court: {slot: None for slot in SLOTS} for court in COURTS}
 
 
 def calc_stats():
@@ -185,7 +193,8 @@ async def add_activity(action: str, name: str, court: str, slot: str):
     await broadcast({"type": "activity", "event": event})
 
 
-#API ROUTES
+#API ROUTES 
+
 @app.get("/api/health")
 async def health_check():
     """
@@ -255,11 +264,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
             elif msg["type"] == "book":
                 date_str, court, slot, name = msg["date"], msg["court"], msg["slot"], msg["name"]
+                session_id = msg.get("session_id")  # Browser's session identifier
                 init_date(date_str)
 
                 async with booking_lock:
                     if bookings[date_str][court][slot] is None:
                         bookings[date_str][court][slot] = name
+                        session_owners[date_str][court][slot] = session_id
                         history.append({
                             "action": "Booked", "name": name, "court": court,
                             "slot": slot, "date": date_str,
@@ -280,10 +291,21 @@ async def websocket_endpoint(websocket: WebSocket):
 
             elif msg["type"] == "cancel":
                 date_str, court, slot, name = msg["date"], msg["court"], msg["slot"], msg["name"]
+                session_id = msg.get("session_id")
+                init_date(date_str)
 
                 async with booking_lock:
-                    if bookings[date_str][court][slot] == name:
+                    booked_name = bookings[date_str][court][slot]
+                    booked_session = session_owners.get(date_str, {}).get(court, {}).get(slot)
+
+                    # Allow cancel only if NAME matches AND SESSION_ID matches
+                    # Legacy bookings (no session) fall back to name-only check
+                    name_ok = (booked_name == name)
+                    session_ok = (booked_session is None) or (booked_session == session_id)
+
+                    if name_ok and session_ok:
                         bookings[date_str][court][slot] = None
+                        session_owners[date_str][court][slot] = None
                         history.append({
                             "action": "Cancelled", "name": name, "court": court,
                             "slot": slot, "date": date_str,
@@ -295,10 +317,16 @@ async def websocket_endpoint(websocket: WebSocket):
                         await broadcast_stats()
                         save_data()
                     else:
-                        logger.warning(f"[DENIED] {name} tried to cancel {court} @ {slot} (not their booking)")
+                        if not name_ok:
+                            reason = "name mismatch"
+                            err_msg = "You can only cancel your own bookings!"
+                        else:
+                            reason = "session mismatch (booking made on different browser)"
+                            err_msg = "Only the original booker can cancel this. Bookings are tied to the browser they were made on."
+                        logger.warning(f"[DENIED] {name} tried to cancel {court} @ {slot} ({reason})")
                         await websocket.send_text(json.dumps({
                             "type": "error",
-                            "msg": "You can only cancel your own bookings!"
+                            "msg": err_msg
                         }))
 
     except WebSocketDisconnect:
@@ -309,4 +337,5 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
 
