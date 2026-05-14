@@ -1,3 +1,17 @@
+"""
+Pickleball Court Reservation System — Backend Server
+CS 323 Parallel and Distributed Computing
+USTP - AY 2025-2026
+Team: Aque, Bajolo, Roxas, Sarting
+
+PDC Concepts:
+- asyncio: handles many WebSocket connections concurrently
+- asyncio.Lock: prevents double-booking under concurrency
+- WebSocket: real-time bidirectional communication
+- Broadcast: push updates to ALL connected clients instantly
+- Background worker: stats heartbeat runs in parallel with handlers
+"""
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -14,7 +28,7 @@ def now_ph():
     """Returns current time in Philippines timezone (UTC+8)."""
     return datetime.now(PH_TZ)
 
-#LOGGING SETUP 
+# ─── LOGGING SETUP ────────────────────────────────────────────────────────────
 # Detailed logging configuration for debugging and monitoring
 logging.basicConfig(
     level=logging.INFO,
@@ -23,7 +37,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pickleball-server")
 
-#SERVER STATE 
+# ─── SERVER STATE ─────────────────────────────────────────────────────────────
 SERVER_START_TIME = now_ph()  # used for uptime tracking
 
 app = FastAPI(
@@ -33,7 +47,7 @@ app = FastAPI(
 )
 
 
-#Background Worker (PDC: Task Distribution)
+# ─── Background Worker (PDC: Task Distribution) ──────────────────────────────
 async def stats_heartbeat_worker():
     """Background worker — broadcasts live stats every 10 seconds.
     Runs in parallel with the main connection handler via asyncio."""
@@ -70,7 +84,7 @@ recent_activity: list = []
 booking_lock = asyncio.Lock()
 connected_clients: list[WebSocket] = []
 
-#DATA PERSISTENCE
+# ─── DATA PERSISTENCE ─────────────────────────────────────────────────────────
 import os
 DATA_FILE = "data.json"
 
@@ -193,7 +207,7 @@ async def add_activity(action: str, name: str, court: str, slot: str):
     await broadcast({"type": "activity", "event": event})
 
 
-#API ROUTES
+# ─── API ROUTES ───────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 async def health_check():
@@ -224,7 +238,7 @@ async def get_stats():
     return JSONResponse(calc_stats())
 
 
-#WebSocket endpoint
+# ─── WebSocket endpoint ───────────────────────────────────────────────────────
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -265,6 +279,15 @@ async def websocket_endpoint(websocket: WebSocket):
             elif msg["type"] == "book":
                 date_str, court, slot, name = msg["date"], msg["court"], msg["slot"], msg["name"]
                 session_id = msg.get("session_id")  # Browser's session identifier
+
+                # SECURITY: Validate name (must contain letters, not just numbers/symbols)
+                if not name or len(name.strip()) < 2 or not any(c.isalpha() for c in name) or name.strip().isdigit():
+                    logger.warning(f"[REJECTED] Invalid name '{name}' tried to book")
+                    await websocket.send_text(json.dumps({
+                        "type": "error",
+                        "msg": "Please enter a valid name (letters required, min 2 characters)."
+                    }))
+                    continue
 
                 # SECURITY: Reject bookings for past dates
                 today_ph = now_ph().strftime("%Y-%m-%d")
@@ -348,5 +371,3 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
-
