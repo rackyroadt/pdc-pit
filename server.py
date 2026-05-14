@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pickleball-server")
 
-#SERVER STATE
+#SERVER STATE 
 SERVER_START_TIME = now_ph()  # used for uptime tracking
 
 app = FastAPI(
@@ -70,7 +70,7 @@ recent_activity: list = []
 booking_lock = asyncio.Lock()
 connected_clients: list[WebSocket] = []
 
-#DATA 
+#DATA PERSISTENCE
 import os
 DATA_FILE = "data.json"
 
@@ -193,7 +193,7 @@ async def add_activity(action: str, name: str, court: str, slot: str):
     await broadcast({"type": "activity", "event": event})
 
 
-#API ROUTES 
+#API ROUTES
 
 @app.get("/api/health")
 async def health_check():
@@ -224,7 +224,7 @@ async def get_stats():
     return JSONResponse(calc_stats())
 
 
-#WebSocket endpoint 
+#WebSocket endpoint
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -265,6 +265,17 @@ async def websocket_endpoint(websocket: WebSocket):
             elif msg["type"] == "book":
                 date_str, court, slot, name = msg["date"], msg["court"], msg["slot"], msg["name"]
                 session_id = msg.get("session_id")  # Browser's session identifier
+
+                # SECURITY: Reject bookings for past dates
+                today_ph = now_ph().strftime("%Y-%m-%d")
+                if date_str < today_ph:
+                    logger.warning(f"[REJECTED] {name} tried to book past date {date_str}")
+                    await websocket.send_text(json.dumps({
+                        "type": "error",
+                        "msg": "You cannot book courts for past dates."
+                    }))
+                    continue
+
                 init_date(date_str)
 
                 async with booking_lock:
@@ -337,4 +348,5 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
 
