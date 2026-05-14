@@ -7,7 +7,7 @@ import statistics
 import csv
 from datetime import datetime
 
-URL = "ws://localhost:8000/ws"
+URL = "wss://pdc-pit.onrender.com/ws"
 
 COURTS = ["Court 1", "Court 2", "Court 3", "Court 4"]
 SLOTS  = ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
@@ -145,7 +145,7 @@ async def run_stress_test(num_users: int):
         "total_avg_ms":    round(statistics.mean(total_times), 1) if total_times else 0,
     }
 
-    #Print results 
+    #Print results
     print(f"  Concurrent users     : {summary['users']}")
     print(f"  Successful bookings  : {summary['successful']}")
     print(f"  Slot conflicts       : {summary['conflicts']}  (expected — lock is working!)")
