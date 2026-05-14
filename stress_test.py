@@ -14,8 +14,8 @@ SLOTS  = ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
           "1:00 PM", "2:00 PM",  "3:00 PM",  "4:00 PM",
           "5:00 PM", "6:00 PM"]
 
-#Detailed metrics tracked per user
-all_metrics = []   #list of dicts with full timing breakdown
+# Detailed metrics tracked per user
+all_metrics = []   # list of dicts with full timing breakdown
 success_count = 0
 error_count = 0
 
@@ -44,7 +44,7 @@ async def simulate_user(user_id: int):
     overall_start = time.perf_counter()
 
     try:
-        #Stage 1: Connect 
+        #Stage 1: Connect
         connect_start = time.perf_counter()
         ws = await websockets.connect(URL, open_timeout=10)
         metrics["connect_ms"] = (time.perf_counter() - connect_start) * 1000
@@ -68,12 +68,13 @@ async def simulate_user(user_id: int):
                 "type":  "book",
                 "court": court,
                 "slot":  slot,
-                "name":  name
+                "name":  name,
+                "session_id": f"stress_session_{user_id}"
             }))
 
-            #Keep reading until we get a state, error, or activity update for our booking
+            # Keep reading until we get a state, error, or activity update for our booking
             response = None
-            for _ in range(5):  #try up to 5 messages
+            for _ in range(5):  # try up to 5 messages
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=5)
                     data = json.loads(raw)
@@ -119,13 +120,13 @@ async def run_stress_test(num_users: int):
 
     wall_start = time.perf_counter()
 
-    #asyncio.gather launches ALL user tasks simultaneously
+    # asyncio.gather launches ALL user tasks simultaneously
     tasks = [simulate_user(i) for i in range(1, num_users + 1)]
     await asyncio.gather(*tasks)
 
     total_ms = (time.perf_counter() - wall_start) * 1000
 
-    #Compute statistics 
+    #Compute statistics
     response_times = [m["response_ms"] for m in all_metrics if m["response_ms"] is not None]
     connect_times  = [m["connect_ms"]  for m in all_metrics if m["connect_ms"]  is not None]
     total_times    = [m["total_ms"]    for m in all_metrics if m["total_ms"]    is not None]
@@ -164,7 +165,7 @@ def export_to_csv(all_summaries, all_user_metrics):
     """Export full test results to CSV files for analysis and graphing."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    #Summary CSV — one row per test run
+    # Summary CSV — one row per test run
     summary_file = f"stress_results_summary_{timestamp}.csv"
     with open(summary_file, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=all_summaries[0].keys())
@@ -172,7 +173,7 @@ def export_to_csv(all_summaries, all_user_metrics):
         writer.writerows(all_summaries)
     print(f"\n  ✓ Summary saved to: {summary_file}")
 
-    #Detailed CSV — one row per simulated user
+    # Detailed CSV — one row per simulated user
     detail_file = f"stress_results_detail_{timestamp}.csv"
     with open(detail_file, 'w', newline='') as f:
         if all_user_metrics:
@@ -192,7 +193,7 @@ async def main():
     all_summaries = []
     all_user_metrics = []
 
-    #Test at three load levels matching the brochure (5, 10, 20 users)
+    # Test at three load levels matching the brochure (5, 10, 20 users)
     for user_count in [5, 10, 20]:
         summary, user_metrics = await run_stress_test(user_count)
         all_summaries.append(summary)
@@ -212,7 +213,7 @@ async def main():
     if all_summaries:
         export_to_csv(all_summaries, all_user_metrics)
 
-    print("\n  Tip: screenshot this output for brochure!\n")
+    print("\n  Tip: screenshot this output for your brochure!\n")
 
 
 if __name__ == "__main__":
