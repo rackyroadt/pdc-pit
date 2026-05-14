@@ -349,6 +349,16 @@
   let ws;
   let currentBookings = {};
   let toastTimer;
+
+  // Browser session ID — protects against others cancelling your bookings.
+  // Only the same browser that made a booking can cancel it.
+  let sessionId = localStorage.getItem('pickleball_session_id');
+  if (!sessionId) {
+    sessionId = 'sess_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36);
+    localStorage.setItem('pickleball_session_id', sessionId);
+  }
+  console.log('[Session] ID:', sessionId);
+
   // Get today's date in local timezone (not UTC!) so server and client agree
   function getLocalDateStr(d) {
     d = d || new Date();
@@ -435,15 +445,15 @@
       document.getElementById('username').focus();
       return;
     }
-    ws.send(JSON.stringify({ type: 'book', court, slot, name, date: currentDate }));
+    ws.send(JSON.stringify({ type: 'book', court, slot, name, date: currentDate, session_id: sessionId }));
   }
 
   function cancel(court, slot) {
     const name = document.getElementById('username').value.trim();
-    ws.send(JSON.stringify({ type: 'cancel', court, slot, name, date: currentDate }));
+    ws.send(JSON.stringify({ type: 'cancel', court, slot, name, date: currentDate, session_id: sessionId }));
   }
 
-  // ─── Live Stats Dashboard ─────────────────────────────────────────────
+  //Live Stats Dashboard 
   function updateStats(stats) {
     const fields = [
       { id: 'val-active',  card: 'stat-active',  value: stats.active },
@@ -467,7 +477,7 @@
       stats.online + (stats.online === 1 ? ' user online' : ' users online');
   }
 
-  // ─── Live Activity Feed ───────────────────────────────────────────────
+  //Live Activity Feed 
   function addActivity(event, animate = true) {
     const list = document.getElementById('activity-list');
     // Remove empty placeholder
@@ -506,7 +516,7 @@
     [...events].reverse().forEach(ev => addActivity(ev, false));
   }
 
-  // ─── WebSocket ────────────────────────────────────────────────────────
+  //WebSocket 
   function connect() {
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
@@ -561,3 +571,5 @@
 </script>
 </body>
 </html>
+
+
