@@ -370,8 +370,16 @@
   const today = getLocalDateStr();
   let currentDate = today;
   document.getElementById('date-picker').value = today;
+  // Prevent selecting dates in the past
+  document.getElementById('date-picker').min = today;
 
   document.getElementById('date-picker').addEventListener('change', (e) => {
+    // Safety check — if somehow they pick a past date, block it
+    if (e.target.value < today) {
+      toast('You cannot book courts for past dates!', 'error');
+      e.target.value = currentDate;
+      return;
+    }
     currentDate = e.target.value;
     ws.send(JSON.stringify({ type: 'get_date', date: currentDate }));
   });
@@ -453,7 +461,7 @@
     ws.send(JSON.stringify({ type: 'cancel', court, slot, name, date: currentDate, session_id: sessionId }));
   }
 
-  //Live Stats Dashboard 
+  //Live Stats Dashboard
   function updateStats(stats) {
     const fields = [
       { id: 'val-active',  card: 'stat-active',  value: stats.active },
@@ -477,7 +485,7 @@
       stats.online + (stats.online === 1 ? ' user online' : ' users online');
   }
 
-  //Live Activity Feed 
+  //Live Activity Feed
   function addActivity(event, animate = true) {
     const list = document.getElementById('activity-list');
     // Remove empty placeholder
