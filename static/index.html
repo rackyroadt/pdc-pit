@@ -446,10 +446,23 @@
     });
   }
 
+  function isValidName(name) {
+    // Must have at least 2 letters and contain at least one alphabetic character
+    if (name.length < 2) return false;
+    if (!/[a-zA-Z]/.test(name)) return false;  // must contain at least one letter
+    if (/^\d+$/.test(name)) return false;  // can't be just numbers
+    return true;
+  }
+
   function book(court, slot) {
     const name = document.getElementById('username').value.trim();
     if (!name) {
       toast('Please enter your name first!', 'error');
+      document.getElementById('username').focus();
+      return;
+    }
+    if (!isValidName(name)) {
+      toast('Please enter a valid name (letters required, min 2 characters).', 'error');
       document.getElementById('username').focus();
       return;
     }
@@ -458,10 +471,15 @@
 
   function cancel(court, slot) {
     const name = document.getElementById('username').value.trim();
+    if (!isValidName(name)) {
+      toast('Please enter a valid name (letters required, min 2 characters).', 'error');
+      document.getElementById('username').focus();
+      return;
+    }
     ws.send(JSON.stringify({ type: 'cancel', court, slot, name, date: currentDate, session_id: sessionId }));
   }
 
-  //Live Stats Dashboard
+  // ─── Live Stats Dashboard ─────────────────────────────────────────────
   function updateStats(stats) {
     const fields = [
       { id: 'val-active',  card: 'stat-active',  value: stats.active },
@@ -485,7 +503,7 @@
       stats.online + (stats.online === 1 ? ' user online' : ' users online');
   }
 
-  //Live Activity Feed
+  // ─── Live Activity Feed ───────────────────────────────────────────────
   function addActivity(event, animate = true) {
     const list = document.getElementById('activity-list');
     // Remove empty placeholder
@@ -524,7 +542,7 @@
     [...events].reverse().forEach(ev => addActivity(ev, false));
   }
 
-  //WebSocket 
+  // ─── WebSocket ────────────────────────────────────────────────────────
   function connect() {
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
@@ -579,5 +597,3 @@
 </script>
 </body>
 </html>
-
-
