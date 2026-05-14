@@ -213,7 +213,7 @@ async def main():
     if all_summaries:
         export_to_csv(all_summaries, all_user_metrics)
 
-    print("\n  Tip: screenshot this output for your brochure!\n")
+    print("\n  Tip: screenshot this output for our brochure!\n")
 
 
 if __name__ == "__main__":

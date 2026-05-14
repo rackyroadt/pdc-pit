@@ -503,7 +503,7 @@
       stats.online + (stats.online === 1 ? ' user online' : ' users online');
   }
 
-  // ─── Live Activity Feed ───────────────────────────────────────────────
+  //Live Activity Feed
   function addActivity(event, animate = true) {
     const list = document.getElementById('activity-list');
     // Remove empty placeholder
@@ -542,7 +542,7 @@
     [...events].reverse().forEach(ev => addActivity(ev, false));
   }
 
-  // ─── WebSocket ────────────────────────────────────────────────────────
+  //WebSocket
   function connect() {
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
@@ -597,3 +597,5 @@
 </script>
 </body>
 </html>
+
+

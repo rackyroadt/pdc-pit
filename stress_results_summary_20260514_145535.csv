@@ -1,0 +1,4 @@
+users,successful,conflicts,total_wall_ms,throughput_rps,connect_avg_ms,response_avg_ms,response_med_ms,response_min_ms,response_max_ms,total_avg_ms
+5,0,5,5105.6,0.98,0,0,0,0,0,4333.7
+10,0,10,4111.4,2.43,0,0,0,0,0,4106.6
+20,0,20,4128.5,4.84,0,0,0,0,0,4106.8

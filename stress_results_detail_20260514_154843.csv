@@ -1,0 +1,36 @@
+user_id,name,connect_ms,response_ms,total_ms,status,court,slot
+1,StressUser1,2632.0133000263013,5014.415999990888,7948.3724999881815,no_response,Court 2,1:00 PM
+3,StressUser3,,,10014.130199997453,error: TimeoutError,,
+2,StressUser2,,,10015.954899979988,error: TimeoutError,,
+5,StressUser5,,,10011.035000003176,error: TimeoutError,,
+4,StressUser4,,,10012.721699982649,error: TimeoutError,,
+6,StressUser6,1186.4905999973416,5170.819599996321,6587.53830002388,no_response,Court 1,10:00 AM
+5,StressUser5,1394.907100009732,5026.968400023179,6735.181099997135,no_response,Court 4,2:00 PM
+9,StressUser9,1427.0256999880075,4989.648599992506,6728.822900011437,no_response,Court 4,3:00 PM
+1,StressUser1,,,10020.218599995133,error: TimeoutError,,
+3,StressUser3,,,10017.823700007284,error: TimeoutError,,
+2,StressUser2,,,10019.192900013877,error: TimeoutError,,
+4,StressUser4,,,10016.673199977959,error: TimeoutError,,
+7,StressUser7,,,10012.407000001986,error: TimeoutError,,
+10,StressUser10,,,10007.867600012105,error: TimeoutError,,
+8,StressUser8,,,10011.190199991688,error: TimeoutError,,
+12,StressUser12,1091.042899992317,5217.443800007459,6531.700100022135,no_response,Court 4,11:00 AM
+18,StressUser18,1102.7234000212047,5229.624600004172,6555.478700000094,no_response,Court 3,6:00 PM
+6,StressUser6,1262.5247000250965,5144.373399991309,6697.48749997234,no_response,Court 1,6:00 PM
+17,StressUser17,1314.9589000095148,5079.683799995109,6689.327400003094,no_response,Court 3,6:00 PM
+11,StressUser11,1370.104400004493,5038.851000019349,6726.500699995086,no_response,Court 4,4:00 PM
+1,StressUser1,1421.1453000025358,5027.0628000143915,6755.244800006039,no_response,Court 3,10:00 AM
+4,StressUser4,,,10015.653400012525,error: TimeoutError,,
+9,StressUser9,,,10011.270899994997,error: TimeoutError,,
+7,StressUser7,,,10013.112899992848,error: TimeoutError,,
+3,StressUser3,,,10017.043699976057,error: TimeoutError,,
+10,StressUser10,,,10010.120899998583,error: TimeoutError,,
+8,StressUser8,,,10012.385199981509,error: TimeoutError,,
+5,StressUser5,,,10015.152400010265,error: TimeoutError,,
+2,StressUser2,,,10018.199799989816,error: TimeoutError,,
+15,StressUser15,,,9999.036299996078,error: TimeoutError,,
+14,StressUser14,,,10000.279900006717,error: TimeoutError,,
+13,StressUser13,,,10001.430499978596,error: TimeoutError,,
+16,StressUser16,,,9997.891900013201,error: TimeoutError,,
+20,StressUser20,,,9993.734999996377,error: TimeoutError,,
+19,StressUser19,,,9994.894900009967,error: TimeoutError,,
